@@ -1,14 +1,7 @@
-let style = document.createElement('style');
-document.body.appendChild(style);
-
-browser.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && 'value' in changes){
-        update(changes.value.newValue);
+// Listen for messages from popup
+browser.runtime.onMessage.addListener((message) => {
+    if (message.action === "userPrompt") {
+      console.log("Prompt received in content script:", message.prompt);
+      // You can forward this to your backend API here
     }
-})
-
-function update(value){
-    style.innerText = `html {filter: sepia(${value}%) !important }`;
-}
-
-browser.storage.local.get('value').then(result => update(result.value));
+  });

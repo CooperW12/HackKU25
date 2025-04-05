@@ -1,17 +1,24 @@
-let input = document.querySelector('input');
-
-input.addEventListener('change', e => setValue(e.target.value));
-
-async function setValue(value) {
-    await browser.storage.local.set({ value });
-}
-
-async function init() {
-    let result = await browser.storage.local.get('value'); // Fixed: Correct API usage
-    let value = result.value || 0; // Default to 0 if undefined
+document.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('prompt-input');
+    const button = document.getElementById('submit-btn');
     
-    input.value = value;
-    await setValue(value); // Optional: Persist default value
-}
-
-init().catch(e => console.error(e));
+    button.addEventListener('click', () => {
+      const prompt = input.value.trim();
+      if (prompt) {
+        // Log to console (visible in Browser Toolbox)
+        console.log("User prompt:", prompt);
+        
+        // Send to content script (optional)
+        browser.tabs.query({active: true, currentWindow: true})
+          .then(tabs => {
+            browser.tabs.sendMessage(tabs[0].id, {
+              action: "userPrompt", 
+              prompt: prompt
+            });
+          });
+        
+        // Clear input
+        input.value = '';
+      }
+    });
+  });
