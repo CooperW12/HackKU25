@@ -52,7 +52,7 @@ the example output for status "DONE" would look like:
 }
 """
 
-instruction = "i want to login"
+instruction = "i want to view my data structures class"
 
 response = client.chat.completions.create(
     model = "deepseek-chat",
