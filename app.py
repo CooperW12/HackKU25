@@ -9,7 +9,7 @@ def save_state():
         "response": "good"
     })
 
-'''
+
 @app.route('/send', method=['GET', 'POST'])
 def route():
     if request.method == 'GET':
@@ -20,7 +20,6 @@ def route():
         # Handle POST request
         data = request.get_json()
         return f"Received POST request with data: {data}"
-'''
 
 
 if __name__ == '__main__':
