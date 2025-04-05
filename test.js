@@ -15,24 +15,35 @@ function sleep(ms){ //the snoozer
     console.log("Navigating to URL...");
     await page.goto('https://gmail.com', {
       waitUntil: 'domcontentloaded',
-      timeout: 300000000
+      timeout: 3000000
     });
     console.log("4. Page loaded successfully!");
     
-    //console.log("5. Typing in search box...");
-    //await page.waitForSelector("input[name='username']", { visible: true });
-    //await page.type("input[name='username']", 'blah blah blah');
+
+    const html = await page.content(); // <----SEND TO PYTHON AI THING
+
+    console.log(html);
+
+
+    console.log("5. Typing in search box...");
+    await page.waitForSelector("input[name='username']", { visible: true });
+    await page.type("input[name='username']", 'blah blah blah');
     await sleep(1000);
 
-    html = await page.content(); // <----SEND TO PYTHON AI THING
-    selector = "" //FROM FLASK?
+    console.log("5. Typing in search box...");
+    await page.waitForSelector("input[name='username']", { visible: true });
+    await page.type("input[name='username']", 'blah blah blah');
+    await sleep(1000);
+
+    
+    //selector = "" //FROM FLASK?
     
     console.log("Clicking");
     await page.waitForSelector(selector, { visible: true });
     await page.click(selector);
     
   
-    console.log("8. Closing browser...");
+    console.log("Closing browser...");
     await browser.close();
   } catch (error) {
     console.error("Error:", error);
