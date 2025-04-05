@@ -1,6 +1,6 @@
 {
-    "manifest_version": 1,
-    "name": "Old-timer",
+    "manifest_version": 2,
+    "name": "jarvis_program",
     "version": "1.0.0",
 
     "content_scripts": [
@@ -20,6 +20,10 @@
     },
 
     "permissions":[
+        "activeTab",
+        "storage",
+        "cookies",
+        "scripting"
     ]
 
 }
