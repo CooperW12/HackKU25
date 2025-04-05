@@ -3,7 +3,7 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 
 
-@app.route('/test')
+@app.route('/')
 def save_state():
     return jsonify({
         "response": "good"
