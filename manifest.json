@@ -1,0 +1,18 @@
+{
+    "manifest_version": 2,
+    "name": "jarvis_program",
+    "version": "1.0.0",
+    
+    "browser_action": {
+      "default_icon": "icon.svg",
+      "default_title": "Jarvis",
+      "default_popup": "popup.html"
+    },
+    
+    "content_scripts": [{
+      "matches": ["<all_urls>"],
+      "js": ["content_script.js"]
+    }],
+    
+    "permissions": ["storage"]
+  }
