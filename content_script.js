@@ -1,14 +1,7 @@
-let style = document.createElement('style');
-document.body.appendChild(style);
+//listen for messages from popup
+console.log("Content script loaded!"); //shows up in web console
 
-browser.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && 'value' in changes){
-        update(changes.value.newValue);
-    }
-})
-
-function update(value){
-    style.innerText = `html {filter: sepia(${value}%) !important }`;
-}
-
-browser.storage.local.get('value').then(result => update(result.value));
+browser.runtime.onMessage.addListener((message) => {
+  console.log("Received in content script:", message); //same as above
+  return Promise.resolve("Message received!");
+});

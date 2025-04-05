@@ -1,17 +1,51 @@
-let input = document.querySelector('input');
+document.getElementById('prompt-input').style.resize = 'vertical';
 
-input.addEventListener('change', e => setValue(e.target.value));
-
-async function setValue(value) {
-    await browser.storage.local.set({ value });
-}
-
-async function init() {
-    let result = await browser.storage.local.get('value'); // Fixed: Correct API usage
-    let value = result.value || 0; // Default to 0 if undefined
+document.addEventListener('DOMContentLoaded', () => {
+    const titleElement = document.getElementById('typing-title');
+    const fullText = "Jarvis Prompt";
+    let i = 0;
     
-    input.value = value;
-    await setValue(value); // Optional: Persist default value
-}
-
-init().catch(e => console.error(e));
+    function typeWriter() {
+      if (i < fullText.length) {
+        titleElement.innerHTML += fullText.charAt(i);
+        i++;
+        setTimeout(typeWriter, 100); //type speed adjuster
+      }
+    }
+    
+    setTimeout(typeWriter, 300); //Create the animation
+    const input = document.getElementById('prompt-input');
+    const button = document.getElementById('submit-btn');
+  
+    button.addEventListener('click', async () => {
+      const prompt = input.value.trim();
+      if (prompt) {
+        //Log to popup console
+        console.log("POPUP LOG:", prompt);
+        
+        //Send to content script
+        try {
+          const tabs = await browser.tabs.query({active: true, currentWindow: true});
+          await browser.tabs.sendMessage(tabs[0].id, {
+            action: "userPrompt",
+            prompt: prompt
+          });
+          console.log("Message sent to content script");
+        } catch (err) {
+          console.error("Failed to send message:", err);
+        }
+        
+        // 3. send to background script if we have one.
+        //browser.runtime.sendMessage({
+          //action: "userPrompt", 
+          //prompt: prompt
+        //}).then(response => {
+          //console.log("Background response:", response);
+        //}).catch(err => {
+          //console.error("Background error:", err);
+        //});
+        
+        input.value = '';
+      }
+    });
+  });
