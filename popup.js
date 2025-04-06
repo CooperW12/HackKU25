@@ -105,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
         try {
             const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-            for (let i = 0; i < 5; i++){
+            for (let i = 0; i < 3; i++){
                 // Step 1: Get current page state from content script
                 const response = await browser.tabs.sendMessage(tab.id, {
                     action: "getPageState",
