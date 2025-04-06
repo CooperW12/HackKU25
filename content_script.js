@@ -1,22 +1,17 @@
-// Listen for messages from popup
-console.log("Content script loaded!");
+//Listen for messages from popup
+console.log("Content script loaded!"); //Shows up in web console
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+browser.runtime.onMessage.addListener((message) => {
     if (message.action === "userPrompt") {
         console.log("Friendly Neighborhood User: ", message.prompt);
-        const instruction = message.prompt;
-        const htmlCode = document.documentElement.outerHTML;
-
-        const jsonObject = {
-            htmlCode: htmlCode,
-            instruction: instruction
-        };
-        console.log("Sending to popup:", jsonObject);
-        sendResponse(jsonObject);
+    }
+    else if (message.action === "getPageHTML") { // NEW
+        console.log("Sending page HTML to popup");
+        return Promise.resolve(document.documentElement.outerHTML);
     }
     else if (message.action === "apiResponse") {
-        console.log("API Response:", message.data);
-        // Process the API response here
+        console.log("A message from far, far away: ", message.data.response);
+        //basically do something with the message we recieve from the heroku server
     }
-    return true; // Required for async response
+    return Promise.resolve("Message received");
 });

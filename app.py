@@ -35,11 +35,16 @@ def test():
 
     return jsonify(json_response)
 
-@app.route("/ask/<json_string>")
-def weather(json_string):
-    json_obj = json.loads(json_string)
+
+@app.route('/ask', methods=['POST'])
+def ask():
+    print("asked")
+    if not request.is_json:
+        return jsonify({"error": "Request must be JSON"}), 400
+
+    json_obj = request.get_json()
     json_response = dsp.get_json_response_from_dict_instruction(json_obj)
-    print(f"custom json response: {json_response}")
+    print("json response:")
     print(json_response)
     return jsonify(json_response)
 
