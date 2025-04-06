@@ -3,14 +3,16 @@ document.getElementById('prompt-input').style.resize = 'vertical';
 document.addEventListener('DOMContentLoaded', () => {
     const titleElement = document.getElementById('typing-title');
     const prompts = [
-        "Jarvis, take me to Amazon.",
+        "Jarvis, cancel my Amazon subscription.",
         "Jarvis, show me the Nasdaq.",
-        "Jarvis, show me the closest beach.",
-        "Jarvis, take me to LeBron highlights."
+        "Jarvis, show me air fryer deals.",
+        "Jarvis, take me to LeBron highlights!"
     ];
     let promptIndex = 0;
     let isTyping = true;
     let i = 0;
+
+    const HEROKU_API = 'https://shrouded-waters-48660-941c6e92b405.herokuapp.com/';
     
     function typeWriter() {
         const currentPrompt = prompts[promptIndex];
@@ -46,24 +48,81 @@ document.addEventListener('DOMContentLoaded', () => {
     //Input handling schtuff :P
     const input = document.getElementById('prompt-input');
     const button = document.getElementById('submit-btn');
-  
-    button.addEventListener('click', async () => {
+    input.style.resize = 'vertical';
+
+    //Add visual feedback function
+    const showSubmitFeedback = () => {
+        button.style.transform = 'scale(0.95)';
+        button.style.backgroundColor = '#2a56c0';
+        setTimeout(() => {
+            button.style.transform = 'scale(1)';
+            button.style.backgroundColor = '#4285f4';
+        }, 200);
+    };
+    const fetchFromHeroku = async () => {
+        try {
+            const response = await fetch(HEROKU_API);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            console.log("Heroku API Response:", data.response); // "good"
+            return data;
+        } catch (err) {
+            console.error("API Fetch Error:", err);
+            throw err;
+        }
+    };
+
+    const handleSubmit = async () => {
         const prompt = input.value.trim();
         if (prompt) {
-            console.log("POPUP LOG:", prompt);
+            showSubmitFeedback();
             
             try {
+                //Send to content script
                 const tabs = await browser.tabs.query({active: true, currentWindow: true});
                 await browser.tabs.sendMessage(tabs[0].id, {
                     action: "userPrompt",
                     prompt: prompt
                 });
-                console.log("Message sent to content script");
+
+                //Fetch
+                const apiData = await fetchFromHeroku();
+                
+                //api response to console
+                await browser.tabs.sendMessage(tabs[0].id, {
+                    action: "apiResponse",
+                    data: apiData
+                });
+
+                console.log("POPUP LOG:", {
+                    userInput: prompt,
+                    apiResponse: apiData.response
+                });
+
             } catch (err) {
-                console.error("Failed to send message:", err);
+                console.error("Submission Error:", err);
+                //error feedback
+                button.style.backgroundColor = '#ff4444';
+                setTimeout(() => {
+                    button.style.backgroundColor = '#4285f4';
+                }, 1000);
             }
             
             input.value = '';
+        }
+    };
+
+    button.addEventListener('click', handleSubmit);
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            //enhanced keyboard feedback
+            button.style.boxShadow = '0 0 0 3px rgba(66, 133, 244, 0.5)';
+            setTimeout(() => {
+                button.style.boxShadow = 'none';
+            }, 300);
+            handleSubmit();
         }
     });
 });

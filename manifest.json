@@ -1,10 +1,10 @@
 {
     "manifest_version": 2,
-    "name": "jarvis_program",
+    "name": "Jarvis",
     "version": "1.0.0",
     
     "browser_action": {
-      "default_icon": "icon.png",
+      "default_icon": "jarvis.png",
       "default_title": "Jarvis",
       "default_popup": "popup.html"
     },
@@ -17,6 +17,7 @@
     "permissions": [
       "storage",
       "activeTab",
-      "tabs"
+      "tabs",
+      "https://shrouded-waters-48660-941c6e92b405.herokuapp.com/*"
     ]
-  }
+}
