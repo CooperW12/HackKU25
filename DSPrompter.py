@@ -29,32 +29,24 @@ class DSPrompter:
         self.system_prompt = read_file_skip_errors("system_prompt.txt")
         pass
 
-    def get_json_response_from_dict_instruction(self, dict_input):
-        # json input should follow the format:
-        # get html page from json input
-        # get instruction from json input
-        htmlCode = dict_input["htmlCode"]
-        instruction = dict_input["instruction"]
 
-        response = self.client.chat.completions.create(
-            model = "deepseek-chat",
-            messages = [
-                {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": "INSTRUCTION: " + instruction + "CODE: " + htmlCode},
-                ],
-                stream = False
-        )
-        text_response = response.choices[0].message.content
+def get_json_response_from_dict_instruction(self, dict_input):
+    htmlCode = dict_input["htmlCode"]
+    instruction = dict_input["instruction"]
 
-        # turn text response into a dict
-        print(f"text response: {text_response}")
-        format_start_i = text_response.find("```json") + 7
-        format_end_i = text_response.find("```", format_start_i + 1)
-        json_substr = text_response[format_start_i:format_end_i]
-        json_substr.replace("\n", '')
+    response = self.client.chat.completions.create(
+        model="deepseek-chat",
+        messages=[
+            {"role": "system", "content": self.system_prompt},
+            {"role": "user", "content": "INSTRUCTION: " + instruction + "CODE: " + htmlCode},
+        ],
+        stream=False,
+        # force json response
+        response_format={"type": "json_object"}
+    )
 
-        print("end substr result:")
-        print(json_substr)
-        response_dict = loads(json_substr)
+    text_response = response.choices[0].message.content
 
-        return response_dict
+    # parse directly
+    response_dict = loads(text_response)
+    return response_dict
