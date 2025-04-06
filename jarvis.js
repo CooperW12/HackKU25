@@ -80,6 +80,7 @@ let testJSON = {
           case "TYPE":
               console.log("typing");
               await page.locator(selector).fill(testJSON["message"]);
+              await sleep(500);
               await page.keyboard.press('Enter'); // Simulates pressing the Enter key
               break;
           default:
@@ -89,6 +90,8 @@ let testJSON = {
     
     console.log("Disconnecting...");
     browser.disconnect();
+
+
   } catch (error) {
     console.error("Error:", error);
     process.exit(1);
