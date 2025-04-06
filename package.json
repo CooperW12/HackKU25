@@ -1,0 +1,13 @@
+{
+  "name": "jarvis",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "python app.py",
+    "build": "echo 'Building...'"
+  },
+  "engines": {
+    "node": "18.x",
+    "python": "3.10.x"
+  }
+}

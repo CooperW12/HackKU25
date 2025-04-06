@@ -10,6 +10,10 @@ browser.runtime.onMessage.addListener(async (message) => {
         
         // Send back to popup.js
     }
+    else if (message.action === "getPageHTML") { // NEW
+        console.log("Sending page HTML to popup");
+        return Promise.resolve(document.documentElement.outerHTML);
+    }
     else if (message.action === "apiResponse") {
         console.log("A message from far, far away: ", message.data.response);
         // Do something with the message from the heroku server
