@@ -29,24 +29,23 @@ class DSPrompter:
         self.system_prompt = read_file_skip_errors("system_prompt.txt")
         pass
 
+    def get_json_response_from_dict_instruction(self, dict_input):
+        htmlCode = dict_input["htmlCode"]
+        instruction = dict_input["instruction"]
 
-def get_json_response_from_dict_instruction(self, dict_input):
-    htmlCode = dict_input["htmlCode"]
-    instruction = dict_input["instruction"]
+        response = self.client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": "INSTRUCTION: " + instruction + "CODE: " + htmlCode},
+            ],
+            stream=False,
+            # force json response
+            response_format={"type": "json_object"}
+        )
 
-    response = self.client.chat.completions.create(
-        model="deepseek-chat",
-        messages=[
-            {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": "INSTRUCTION: " + instruction + "CODE: " + htmlCode},
-        ],
-        stream=False,
-        # force json response
-        response_format={"type": "json_object"}
-    )
+        text_response = response.choices[0].message.content
 
-    text_response = response.choices[0].message.content
-
-    # parse directly
-    response_dict = loads(text_response)
-    return response_dict
+        # parse directly
+        response_dict = loads(text_response)
+        return response_dict
