@@ -33,7 +33,7 @@ class DSPrompter:
         instruction = dict_input["instruction"]
 
         response = self.client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="o3-mini",
             store=True,
             messages=[
                 {"role": "system", "content": self.system_prompt},
