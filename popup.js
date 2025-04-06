@@ -61,7 +61,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const fetchFromHeroku = async () => {
         try {
-            const response = await fetch(HEROKU_API);
+            // put all good code here
+            //make json input obj
+            json_obj = {}
+
+            my_url = HEROKU_API + "/ask/" + json.stringify(json_obj);
+            const response = await fetch(my_url);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
             console.log("Heroku API Response:", data.response); // "good"
@@ -80,11 +85,19 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 //Send to content script
                 const tabs = await browser.tabs.query({active: true, currentWindow: true});
-                await browser.tabs.sendMessage(tabs[0].id, {
+                const htmlResponse = await browser.tabs.sendMessage(tabs[0].id, {
                     action: "userPrompt",
                     prompt: prompt
                 });
+                
+                //the JSON object, we are so back
+                const requestData = {
+                    htmlCode: htmlResponse.htmlCode,
+                    instructions: prompt
+                };
 
+                const encodedData = encodeURIComponent(JSON.stringify(requestData));
+                const apiUrl = 
                 //Fetch
                 const apiData = await fetchFromHeroku();
                 
