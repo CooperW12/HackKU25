@@ -27,6 +27,7 @@ class DSPrompter:
 
         self.client = OpenAI(api_key=DS_api_key, base_url="https://api.deepseek.com")
         self.system_prompt = read_file_skip_errors("system_prompt.txt")
+        print(self.system_prompt)
         pass
 
     def get_json_response_from_dict_instruction(self, dict_input):
