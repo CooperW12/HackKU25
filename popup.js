@@ -16,41 +16,34 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function typeWriter() {
         const currentPrompt = prompts[promptIndex];
-        //Typing function to type and delete text above the prompt
         if (isTyping) {
             if (i < currentPrompt.length) {
                 titleElement.innerHTML = currentPrompt.substring(0, i + 1);
                 i++;
-                setTimeout(typeWriter, 100); //Type speed
+                setTimeout(typeWriter, 100);
             } else {
-                //Delete after pause
                 isTyping = false;
-                setTimeout(typeWriter, 2000); //Pause at full message
+                setTimeout(typeWriter, 2000);
             }
         } else {
-            //deleting
-            if (i > 7) { //This keeps the 'Jarvis,' part of the statement
+            if (i > 7) {
                 titleElement.innerHTML = currentPrompt.substring(0, i - 1);
                 i--;
-                setTimeout(typeWriter, 50); //Deleting speed (faster)
+                setTimeout(typeWriter, 50);
             } else {
-                //Next prompt
                 isTyping = true;
                 promptIndex = (promptIndex + 1) % prompts.length;
-                setTimeout(typeWriter, 500); //Pause before next prompt
+                setTimeout(typeWriter, 500);
             }
         }
     }
     
-    //Starts animation
     setTimeout(typeWriter, 300);
     
-    //Input handling schtuff :P
     const input = document.getElementById('prompt-input');
     const button = document.getElementById('submit-btn');
     input.style.resize = 'vertical';
 
-    //Add visual feedback function
     const showSubmitFeedback = () => {
         button.style.transform = 'scale(0.95)';
         button.style.backgroundColor = '#2a56c0';
@@ -59,13 +52,13 @@ document.addEventListener('DOMContentLoaded', () => {
             button.style.backgroundColor = '#4285f4';
         }, 200);
     };
-    const fetchFromHeroku = async () => {
+
+    const fetchFromHeroku = async (jsonData) => {
         try {
-            const response = await fetch(HEROKU_API);
+            const encodedData = encodeURIComponent(JSON.stringify(jsonData));
+            const response = await fetch(`${HEROKU_API}ask/${encodedData}`);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const data = await response.json();
-            console.log("Heroku API Response:", data.response); // "good"
-            return data;
+            return await response.json();
         } catch (err) {
             console.error("API Fetch Error:", err);
             throw err;
@@ -74,42 +67,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const handleSubmit = async () => {
         const prompt = input.value.trim();
-        if (prompt) {
-            showSubmitFeedback();
+        if (!prompt) return;
+
+        showSubmitFeedback();
+        
+        try {
+            const tabs = await chrome.tabs.query({active: true, currentWindow: true});
             
-            try {
-                //Send to content script
-                const tabs = await browser.tabs.query({active: true, currentWindow: true});
-                await browser.tabs.sendMessage(tabs[0].id, {
-                    action: "userPrompt",
-                    prompt: prompt
-                });
-
-                //Fetch
-                const apiData = await fetchFromHeroku();
-                
-                //api response to console
-                await browser.tabs.sendMessage(tabs[0].id, {
-                    action: "apiResponse",
-                    data: apiData
-                });
-
-                console.log("POPUP LOG:", {
-                    userInput: prompt,
-                    apiResponse: apiData.response
-                });
-
-            } catch (err) {
-                console.error("Submission Error:", err);
-                //error feedback
-                button.style.backgroundColor = '#ff4444';
-                setTimeout(() => {
-                    button.style.backgroundColor = '#4285f4';
-                }, 1000);
-            }
+            // Get HTML and prompt from content script
+            const jsonData = await chrome.tabs.sendMessage(tabs[0].id, {
+                action: "userPrompt",
+                prompt: prompt
+            });
             
-            input.value = '';
+            // Send to Heroku
+            const apiData = await fetchFromHeroku(jsonData);
+            
+            // Send response to content script
+            await chrome.tabs.sendMessage(tabs[0].id, {
+                action: "apiResponse",
+                data: apiData
+            });
+
+            console.log("Full cycle complete:", apiData);
+
+        } catch (err) {
+            console.error("Submission Error:", err);
+            button.style.backgroundColor = '#ff4444';
+            setTimeout(() => {
+                button.style.backgroundColor = '#4285f4';
+            }, 1000);
         }
+        
+        input.value = '';
     };
 
     button.addEventListener('click', handleSubmit);
@@ -117,7 +107,6 @@ document.addEventListener('DOMContentLoaded', () => {
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            //enhanced keyboard feedback
             button.style.boxShadow = '0 0 0 3px rgba(66, 133, 244, 0.5)';
             setTimeout(() => {
                 button.style.boxShadow = 'none';
