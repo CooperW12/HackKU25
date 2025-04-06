@@ -34,6 +34,11 @@ class DSPrompter:
         htmlCode = dict_input["htmlCode"]
         instruction = dict_input["instruction"]
 
+        print(f"htmlCode type: {type(htmlCode)}")
+        print(f"htmlCode type: {type(instruction)}")
+        print("instruction:")
+        print(instruction)
+
         response = self.client.chat.completions.create(
             model="deepseek-chat",
             messages=[
