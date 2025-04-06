@@ -1,7 +1,9 @@
 from openai import OpenAI
 import os
 from dotenv import load_dotenv, find_dotenv
+from json import loads
 load_dotenv(find_dotenv())
+
 
 def read_file_skip_errors(file_path, encoding='utf-8'): #encoding errors from html >:(
     try:
@@ -11,16 +13,47 @@ def read_file_skip_errors(file_path, encoding='utf-8'): #encoding errors from ht
         print(f"Error: File not found at {file_path}")
         return ""
     except Exception as e:
-         print(f"An error occurred: {e}")
-         return ""
+        print(f"An error occurred: {e}")
+        return ""
 
-htmlCode = read_file_skip_errors("testweb.txt")
 
-#htmlCode = "imagine this is a website with a basic login page and we want to view our messages on our account keep responding until status is DONE assume the user completes any actions at USER_NEEDED status"
+class DSPrompter:
 
-client = OpenAI(api_key=os.environ['API_KEY'], base_url="https://api.deepseek.com")
+    def __init__(self):
+        # initialize deepseek client and system prompt text
+        DS_api_key = os.environ.get("API_KEY")
+        if (not DS_api_key):
+            raise ValueError("you have NO api key...")
 
-systemPrompt = """
+        self.client = OpenAI(api_key=DS_api_key, base_url="https://api.deepseek.com")
+        self.system_prompt = get_system_prompt()
+        print(self.system_prompt)
+        pass
+
+    def get_json_response_from_dict_instruction(self, dict_input):
+        htmlCode = dict_input["htmlCode"]
+        instruction = dict_input["instruction"]
+
+        response = self.client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": "INSTRUCTION: " + instruction + "CODE: " + htmlCode},
+            ],
+            stream=False,
+            # force json response
+            response_format={"type": "json_object"}
+        )
+
+        text_response = response.choices[0].message.content
+
+        # parse directly
+        response_dict = loads(text_response)
+        return response_dict
+
+def get_system_prompt():
+    return \
+"""
 The user will provide you with html code of a webpage, instuctions on where they wish to go to.
 You also need to determine the status of the webpage
 The status can be one of three things:
@@ -30,10 +63,15 @@ The status can be one of three things:
 
 if the status is determined to be "CONTINUE", please find the html element to click on and output the css selector.
 the example output for status "CONTINUE" would look like:
+
+You MUST respond in valid JSON format only, using this exact structure:
+
 {
-    "status": CONTINUE
-    "target_element": [FILL HERE]
-    "message": [5-8 word description of what you did] 
+    "status": "CONTINUE|USER_NEEDED|DONE",
+    "target_element": "CSS_SELECTOR_OR_NULL",
+    "message": "4 to 6 word description of action"
+}
+
 }
 
 if the status is determined to be "USER_NEEDED", please prompt the user with what they need to do
@@ -51,16 +89,3 @@ the example output for status "DONE" would look like:
     "message": We have arrived at your destination.
 }
 """
-
-instruction = "i want to view my data structures class"
-
-response = client.chat.completions.create(
-    model = "deepseek-chat",
-    messages = [
-        {"role": "system", "content": systemPrompt},
-        {"role": "user", "content": "INSTRUCTION: " + instruction + "CODE: " + htmlCode},
-        ],
-        stream = False
-)
-
-print(response.choices[0].message.content)
