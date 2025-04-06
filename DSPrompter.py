@@ -58,6 +58,7 @@ Your job is to determine the status of the webpage
 The status can be one of three things:
 "CONTINUE" - no need for user input to get where needed, look for the next selector needed to achieve the user's goal.
 "USER_NEEDED" - the user is needed for something (i.e. username/password/captcha)
+the user should ONLY be needed if it is a scenario in which you are absolutely unable to move forward.
 "DONE" - the goal webpage has been reached
 
 For all of the templates, the elements surrounded by square brackets, [], are variables, and are to be replaced with the correct value.
