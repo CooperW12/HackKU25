@@ -17,6 +17,7 @@
     "permissions": [
       "storage",
       "activeTab",
-      "tabs"
+      "tabs",
+      "https://shrouded-waters-48660-941c6e92b405.herokuapp.com/*"
     ]
   }
