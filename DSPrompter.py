@@ -27,14 +27,6 @@ class DSPrompter:
 
         self.client = OpenAI(api_key=DS_api_key)
         self.system_prompt = get_system_prompt()
-        # preload with system prompt
-        self.client.chat.completions.create(
-            model="gpt-4o",
-            store=True,
-            messages=[
-                {"role": "system", "content": self.system_prompt},
-            ],
-        )
 
     def get_json_response_from_dict_instruction(self, dict_input):
         htmlCode = dict_input["htmlCode"]
@@ -42,7 +34,9 @@ class DSPrompter:
 
         response = self.client.chat.completions.create(
             model="gpt-4o",
+            store=True,
             messages=[
+                {"role": "system", "content": self.system_prompt},
                 {"role": "user", "content": "INSTRUCTION: " + instruction + "CODE: " + htmlCode},
             ],
             # force json response
