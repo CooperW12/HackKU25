@@ -1,7 +1,12 @@
+
 document.getElementById('prompt-input').style.resize = 'vertical';
 
 document.addEventListener('DOMContentLoaded', () => {
     const titleElement = document.getElementById('typing-title');
+    const input = document.getElementById('prompt-input');
+    const button = document.getElementById('submit-btn');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    
     const prompts = [
         "Jarvis, cancel my Amazon subscription.",
         "Jarvis, show me the Nasdaq.",
@@ -193,6 +198,10 @@ document.addEventListener('DOMContentLoaded', () => {
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
+            button.style.boxShadow = '0 0 0 3px rgba(66, 133, 244, 0.5)';
+            setTimeout(() => {
+                button.style.boxShadow = 'none';
+            }, 300);
             handleSubmit();
             button.classList.add('keyboard-submit');
             setTimeout(() => button.classList.remove('keyboard-submit'), 300);
@@ -202,3 +211,4 @@ document.addEventListener('DOMContentLoaded', () => {
     // Focus input when popup opens
     input.focus();
 });
+
