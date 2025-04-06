@@ -1,12 +1,16 @@
-
 document.getElementById('prompt-input').style.resize = 'vertical';
 
 document.addEventListener('DOMContentLoaded', () => {
+    // DOM Elements
     const titleElement = document.getElementById('typing-title');
     const input = document.getElementById('prompt-input');
     const button = document.getElementById('submit-btn');
     const loadingIndicator = document.getElementById('loading-indicator');
-    
+    const flavorText = document.getElementById('flavor-text');
+    const flavorContent = document.getElementById('flavor-content');
+    const statusText = loadingIndicator.querySelector('.status-text');
+
+    // Animation variables
     const prompts = [
         "Jarvis, cancel my Amazon subscription.",
         "Jarvis, show me the Nasdaq.",
@@ -16,8 +20,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let promptIndex = 0;
     let isTyping = true;
     let i = 0;
+
+    // API endpoint
     const HEROKU_API = 'https://shrouded-waters-48660-941c6e92b405.herokuapp.com/ask';
     
+    // Typing animation for title
     function typeWriter() {
         const currentPrompt = prompts[promptIndex];
         if (isTyping) {
@@ -42,11 +49,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
+    // Start typing animation
     setTimeout(typeWriter, 300);
-    
-    const input = document.getElementById('prompt-input');
-    const button = document.getElementById('submit-btn');
 
+    // Button feedback animation
     const showSubmitFeedback = () => {
         button.style.transform = 'scale(0.95)';
         button.style.backgroundColor = '#2a56c0';
@@ -56,9 +62,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 200);
     };
 
+    // Query AI with proper error handling
     async function queryAI(pageState) {
         try {
-            // Convert elements array to a string representation
             const elementsStr = Array.isArray(pageState.elements) 
                 ? JSON.stringify(pageState.elements, null, 2)
                 : String(pageState.elements);
@@ -71,15 +77,12 @@ document.addEventListener('DOMContentLoaded', () => {
             
             console.log("AI Prompt:", aiPrompt);
             
-            // Get response from backend
             const aiResponse = await accessBackend(elementsStr, pageState.userGoal);
             
-            // Ensure the response is properly stringified
             if (typeof aiResponse === 'object') {
                 return JSON.stringify(aiResponse);
             }
             
-            // If it's already a string, try to parse it to validate
             try {
                 JSON.parse(aiResponse);
                 return aiResponse;
@@ -89,7 +92,6 @@ document.addEventListener('DOMContentLoaded', () => {
             
         } catch (error) {
             console.error("Error in queryAI:", error);
-            // Return a safe fallback response
             return JSON.stringify({
                 status: "continue",
                 command: "search",
@@ -101,78 +103,84 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Main submission handler with loading state
     const handleSubmit = async () => {
         const prompt = input.value.trim();
-        if (!prompt) return;
-    
-        showSubmitFeedback();
-        console.log("Processing prompt:", prompt);
-    
+        if (!prompt || button.disabled) return;
+
+        // Set loading state
+        button.disabled = true;
+        loadingIndicator.style.display = 'flex';
+        flavorText.style.display = 'none';
+        let timeoutSeconds = 0;
+        const timeoutInterval = setInterval(() => {
+            timeoutSeconds++;
+            statusText.textContent = `Processing (${timeoutSeconds}s)...`;
+        }, 1000);
+
         try {
             const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-            for (let i = 0; i < 5; i++){
-                // Step 1: Get current page state from content script
+            
+            for (let i = 0; i < 5; i++) {
+                // Update status text
+                statusText.textContent = `Step ${i+1}/5: Analyzing page...`;
+                
+                // Get page state
                 const response = await browser.tabs.sendMessage(tab.id, {
                     action: "getPageState",
                     userGoal: prompt
                 });
                 
-                // Check if we got a valid response
-                if (!response || !response.success) {
-                    throw new Error("Failed to get page state from content script");
+                if (!response?.success) {
+                    throw new Error("Failed to get page state");
                 }
-                
-                console.log("Received page state:", response.pageState);
-        
-                // Step 2: Send to AI and get response
-            
+
+                // Query AI
+                statusText.textContent = `Step ${i+1}/5: Consulting AI...`;
                 const aiResponse = await queryAI({
                     ...response.pageState,
-                    userGoal: prompt // Ensure userGoal is included
+                    userGoal: prompt
                 });
 
-        
-                
-                console.log("AI Response:", aiResponse);
-        
-                // Step 3: Execute the AI's command
+                // Execute command
+                statusText.textContent = `Step ${i+1}/5: Executing...`;
                 const executionResult = await browser.tabs.sendMessage(tab.id, {
                     action: "executeAICommand",
                     aiResponse: aiResponse
                 });
-                
-                // Handle the execution result
-                if (!executionResult.success) {
-                    //throw new Error(executionResult.error || "Command execution failed");
-                    console.log("eror");
+
+                // Update flavor text
+                if (executionResult.message) {
+                    flavorContent.textContent = executionResult.message;
+                    flavorText.style.display = 'block';
                 }
-        
-                console.log("Execution result:", executionResult);
-        
-                // Handle different statuses
+
                 if (executionResult.action === 'user_needed') {
-                    alert(`Jarvis needs your help: ${executionResult.message}`);
-                } else if (executionResult.action === 'done') {
-                    alert(`Success: ${executionResult.message}`);
+                    break;
                 }
-        
-                input.value = '';
-            
             }
-            } catch (error) {
-                console.error("Error during automation:", error);
-                alert(`Jarvis encountered an error: ${error.message}`);
-                
-                // Fallback: Open a new tab with Google search
-                if (error.message.includes("No receiver") || error.message.includes("Could not establish connection")) {
-                    browser.tabs.create({
-                        url: `https://www.google.com/search?q=${encodeURIComponent(prompt)}`
-                    });
-                }
-        
+        } catch (error) {
+            console.error("Error during automation:", error);
+            flavorContent.textContent = `Error: ${error.message}`;
+            flavorText.style.display = 'block';
+            
+            // Fallback: Open Google search if connection fails
+            if (error.message.includes("No receiver") || error.message.includes("Could not establish connection")) {
+                browser.tabs.create({
+                    url: `https://www.google.com/search?q=${encodeURIComponent(prompt)}`
+                });
+            }
+        } finally {
+            // Clear loading state
+            clearInterval(timeoutInterval);
+            button.disabled = false;
+            loadingIndicator.style.display = 'none';
+            statusText.textContent = 'Processing...';
+            input.value = '';
         }
     };
 
+    // Backend API access
     const accessBackend = async (html, instruction) => {
         try {
             const response = await fetch(HEROKU_API, {
@@ -193,6 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // Event listeners
     button.addEventListener('click', handleSubmit);
 
     input.addEventListener('keydown', (e) => {
@@ -203,12 +212,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 button.style.boxShadow = 'none';
             }, 300);
             handleSubmit();
-            button.classList.add('keyboard-submit');
-            setTimeout(() => button.classList.remove('keyboard-submit'), 300);
         }
     });
 
     // Focus input when popup opens
     input.focus();
 });
-
