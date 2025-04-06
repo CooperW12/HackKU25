@@ -38,14 +38,11 @@ def test():
 
 @app.route('/ask', methods=['POST'])
 def ask():
-    print("asked")
     if not request.is_json:
         return jsonify({"error": "Request must be JSON"}), 400
 
     json_obj = request.get_json()
     json_response = dsp.get_json_response_from_dict_instruction(json_obj)
-    print("json response:")
-    print(json_response)
     return jsonify(json_response)
 
 if __name__ == '__main__':
