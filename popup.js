@@ -11,43 +11,37 @@ document.addEventListener('DOMContentLoaded', () => {
     let promptIndex = 0;
     let isTyping = true;
     let i = 0;
+    const HEROKU_API = 'https://shrouded-waters-48660-941c6e92b405.herokuapp.com/ask';
     
     function typeWriter() {
         const currentPrompt = prompts[promptIndex];
-        //Typing function to type and delete text above the prompt
         if (isTyping) {
             if (i < currentPrompt.length) {
                 titleElement.innerHTML = currentPrompt.substring(0, i + 1);
                 i++;
-                setTimeout(typeWriter, 100); //Type speed
+                setTimeout(typeWriter, 100);
             } else {
-                //Delete after pause
                 isTyping = false;
-                setTimeout(typeWriter, 2000); //Pause at full message
+                setTimeout(typeWriter, 2000);
             }
         } else {
-            //deleting
-            if (i > 7) { //This keeps the 'Jarvis,' part of the statement
+            if (i > 7) {
                 titleElement.innerHTML = currentPrompt.substring(0, i - 1);
                 i--;
-                setTimeout(typeWriter, 50); //Deleting speed (faster)
+                setTimeout(typeWriter, 50);
             } else {
-                //Next prompt
                 isTyping = true;
                 promptIndex = (promptIndex + 1) % prompts.length;
-                setTimeout(typeWriter, 500); //Pause before next prompt
+                setTimeout(typeWriter, 500);
             }
         }
     }
     
-    //Starts animation
     setTimeout(typeWriter, 300);
     
-    //Input handling schtuff :P
     const input = document.getElementById('prompt-input');
     const button = document.getElementById('submit-btn');
 
-    // Add visual feedback function
     const showSubmitFeedback = () => {
         button.style.transform = 'scale(0.95)';
         button.style.backgroundColor = '#2a56c0';
@@ -57,41 +51,154 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 200);
     };
 
-    // Shared submission function
-    const handleSubmit = async () => {
-        const prompt = input.value.trim();
-        if (prompt) {
-            showSubmitFeedback(); // Visual feedback
+    async function queryAI(pageState) {
+        try {
+            // Convert elements array to a string representation
+            const elementsStr = Array.isArray(pageState.elements) 
+                ? JSON.stringify(pageState.elements, null, 2)
+                : String(pageState.elements);
             
-            console.log("POPUP LOG:", prompt);
+            const aiPrompt = `You are Jarvis. Analyze this page state and user goal:
+    Goal: ${pageState.userGoal}
+    Interactable Elements: ${elementsStr}
+    
+    Respond with JSON following the exact schema provided.`;
             
-            try {
-                const tabs = await browser.tabs.query({active: true, currentWindow: true});
-                await browser.tabs.sendMessage(tabs[0].id, {
-                    action: "userPrompt",
-                    prompt: prompt
-                });
-                console.log("Message sent to content script");
-            } catch (err) {
-                console.error("Failed to send message:", err);
+            console.log("AI Prompt:", aiPrompt);
+            
+            // Get response from backend
+            const aiResponse = await accessBackend(elementsStr, pageState.userGoal);
+            
+            // Ensure the response is properly stringified
+            if (typeof aiResponse === 'object') {
+                return JSON.stringify(aiResponse);
             }
             
-            input.value = '';
+            // If it's already a string, try to parse it to validate
+            try {
+                JSON.parse(aiResponse);
+                return aiResponse;
+            } catch {
+                throw new Error("Invalid JSON response from API");
+            }
+            
+        } catch (error) {
+            console.error("Error in queryAI:", error);
+            // Return a safe fallback response
+            return JSON.stringify({
+                status: "continue",
+                command: "search",
+                args: {
+                    query: pageState.userGoal,
+                },
+                flavor: "Error processing AI response"
+            });
+        }
+    }
+
+    const handleSubmit = async () => {
+        const prompt = input.value.trim();
+        if (!prompt) return;
+    
+        showSubmitFeedback();
+        console.log("Processing prompt:", prompt);
+    
+        try {
+            const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+            for (let i = 0; i < 5; i++){
+                // Step 1: Get current page state from content script
+                const response = await browser.tabs.sendMessage(tab.id, {
+                    action: "getPageState",
+                    userGoal: prompt
+                });
+                
+                // Check if we got a valid response
+                if (!response || !response.success) {
+                    throw new Error("Failed to get page state from content script");
+                }
+                
+                console.log("Received page state:", response.pageState);
+        
+                // Step 2: Send to AI and get response
+            
+                const aiResponse = await queryAI({
+                    ...response.pageState,
+                    userGoal: prompt // Ensure userGoal is included
+                });
+
+        
+                
+                console.log("AI Response:", aiResponse);
+        
+                // Step 3: Execute the AI's command
+                const executionResult = await browser.tabs.sendMessage(tab.id, {
+                    action: "executeAICommand",
+                    aiResponse: aiResponse
+                });
+                
+                // Handle the execution result
+                if (!executionResult.success) {
+                    //throw new Error(executionResult.error || "Command execution failed");
+                    console.log("eror");
+                }
+        
+                console.log("Execution result:", executionResult);
+        
+                // Handle different statuses
+                if (executionResult.action === 'user_needed') {
+                    alert(`Jarvis needs your help: ${executionResult.message}`);
+                } else if (executionResult.action === 'done') {
+                    alert(`Success: ${executionResult.message}`);
+                }
+        
+                input.value = '';
+            
+            }
+            } catch (error) {
+                console.error("Error during automation:", error);
+                alert(`Jarvis encountered an error: ${error.message}`);
+                
+                // Fallback: Open a new tab with Google search
+                if (error.message.includes("No receiver") || error.message.includes("Could not establish connection")) {
+                    browser.tabs.create({
+                        url: `https://www.google.com/search?q=${encodeURIComponent(prompt)}`
+                    });
+                }
+        
         }
     };
 
-    // Click handler
+    const accessBackend = async (html, instruction) => {
+        try {
+            const response = await fetch(HEROKU_API, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    htmlCode: html,
+                    instruction: instruction
+                })
+            });
+
+            return await response.json();
+        } catch (err) {
+            console.error("API Fetch Error:", err);
+            throw err;
+        }
+    };
+
     button.addEventListener('click', handleSubmit);
 
-    // Enter key handler
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSubmit();
-            
-            // Extra visual feedback for keyboard users
             button.classList.add('keyboard-submit');
             setTimeout(() => button.classList.remove('keyboard-submit'), 300);
         }
     });
+
+    // Focus input when popup opens
+    input.focus();
 });
