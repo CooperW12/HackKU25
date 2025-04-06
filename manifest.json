@@ -1,23 +1,23 @@
 {
-  "manifest_version": 2,
-  "name": "Jarvis",
-  "version": "1.0.0",
-  
-  "browser_action": {
-    "default_icon": "jarvis.png",
-    "default_title": "Jarvis",
-    "default_popup": "popup.html"
-  },
-  
-  "content_scripts": [{
-    "matches": ["<all_urls>"],
-    "js": ["content_script.js"]
-  }],
-  
-  "permissions": [
-    "storage",
-    "activeTab",
-    "tabs",
-    "https://shrouded-waters-48660-941c6e92b405.herokuapp.com/*"
-  ]
-}
+    "manifest_version": 2,
+    "name": "Jarvis",
+    "version": "1.0.0",
+    
+    "browser_action": {
+      "default_icon": "icon.png",
+      "default_title": "Jarvis",
+      "default_popup": "popup.html"
+    },
+    
+    "content_scripts": [{
+      "matches": ["<all_urls>"],
+      "js": ["content_script.js"]
+    }],
+    
+    "permissions": [
+      "storage",
+      "activeTab",
+      "tabs",
+      "https://shrouded-waters-48660-941c6e92b405.herokuapp.com/*"
+    ]
+  }

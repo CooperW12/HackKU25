@@ -1,88 +1,143 @@
-//Listen for messages from popup
-/*
-console.log("Content script loaded!"); //Shows up in web console
+console.log("JARVIS content script loaded - enhanced version");
 
-browser.runtime.onMessage.addListener((message) => {
-    if (message.action === "userPrompt") {
-        console.log("Friendly Neighborhood User: ", message.prompt);
-    }
-    else if (message.action === "getPageHTML") { // NEW
-        console.log("Sending page HTML to popup");
-        return Promise.resolve(document.documentElement.outerHTML);
-    }
-    else if (message.action === "apiResponse") {
-        console.log("A message from far, far away: ", message.data.status);
-        //basically do something with the message we recieve from the heroku server
-    }
-    return Promise.resolve("Message received");
-});
-*/
-console.log("Content script loaded!");
-browser.runtime.onMessage.addListener((message) => {
-    if (message.action === "userPrompt") {
-        console.log("User prompt:", message.prompt);
-    }
-    else if (message.action === "getPageHTML") {
-        console.log("Creating optimized HTML snapshot");
-        
-        // Clone the document to avoid modifying the live page
-        const clonedDoc = document.cloneNode(true);
-        
-        // Remove elements we don't need
-        const elementsToRemove = clonedDoc.querySelectorAll(
-            'script, style, link, meta, noscript, svg, img, video, audio, iframe, canvas, path, g'
-        );
-        elementsToRemove.forEach(el => el.remove());
-        
-        // Get interactive elements and their context
-        const interactiveElements = clonedDoc.querySelectorAll(
-            'a, button, input, select, textarea, [role="button"], [role="link"], [tabindex], [onclick], [href]'
-        );
-        
-        // Create a simplified container
-        const simplifiedContainer = clonedDoc.createElement('div');
-        
-        // Add important structural elements and interactive elements
-        interactiveElements.forEach(el => {
-            // Include the element and 2 levels up of parent hierarchy for context
-            const contextWrapper = clonedDoc.createElement('div');
-            contextWrapper.innerHTML = el.outerHTML;
-            simplifiedContainer.appendChild(contextWrapper);
-            
-            // Include labels for inputs
-            if (el.tagName === 'INPUT' && el.id) {
-                const label = clonedDoc.querySelector(`label[for="${el.id}"]`);
-                if (label) {
-                    simplifiedContainer.appendChild(label.cloneNode(true));
-                }
-            }
-        });
-        
-        // Include page title and main landmarks
-        if (clonedDoc.title) {
-            const titleEl = clonedDoc.createElement('h1');
-            titleEl.textContent = clonedDoc.title;
-            simplifiedContainer.prepend(titleEl);
+// Utility functions
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function getPageState(userGoal = null) {
+  // Get all interactable elements
+  const interactableElements = Array.from(document.querySelectorAll(
+    'a, button, input, select, textarea, [role="button"], [onclick], [contenteditable="true"]'
+  )).map(el => {
+    const rect = el.getBoundingClientRect();
+    return {
+      tag: el.tagName.toLowerCase(),
+      text: el.textContent?.trim() || '',
+      id: el.id,
+      classes: el.className,
+      href: el.href || null,
+      type: el.type || null,
+      name: el.name || null,
+      placeholder: el.placeholder || null,
+      role: el.getAttribute('role'),
+      onClick: el.getAttribute('onclick'),
+      value: el.value || null,
+      isVisible: rect.width > 0 && rect.height > 0 && 
+                getComputedStyle(el).visibility !== 'hidden' && 
+                getComputedStyle(el).display !== 'none',
+      position: {
+        x: Math.round(rect.left + window.scrollX),
+        y: Math.round(rect.top + window.scrollY)
+      },
+      size: {
+        width: Math.round(rect.width),
+        height: Math.round(rect.height)
+      }
+    };
+  }).filter(el => el.isVisible);
+
+
+  // Structure data for AI model
+  const pageState = {
+    elements: interactableElements,
+    userGoal: userGoal || 'Navigate or complete unspecified task',
+  };
+
+  return pageState;
+}
+
+// Enhanced command execution with AI response handling
+async function executeAICommand(aiResponse) {
+  try {
+    const command = JSON.parse(aiResponse);
+    
+    switch (command.status.toLowerCase()) {
+      case 'continue':
+        if (command.command === 'click' && command.args.target_element) {
+          const element = document.querySelector(command.args.target_element);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            await sleep(300);
+            element.click();
+            return { success: true, action: 'click', selector: command.args.target_element };
+          }
+        } 
+        else if (command.command === 'fill' && command.args.target_element) {
+          const element = document.querySelector(command.args.target_element);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            element.focus();
+            element.value = command.args.fill_text;
+            element.dispatchEvent(new Event('input', { bubbles: true }));
+            element.dispatchEvent(new Event('change', { bubbles: true }));
+            return { success: true, action: 'fill', selector: command.args.target_element };
+          }
         }
+        break;
         
-        const mainContent = clonedDoc.querySelector('main, [role="main"], .main-content') || 
-                            clonedDoc.querySelector('body');
-        if (mainContent) {
-            const mainClone = mainContent.cloneNode(true);
-            // Clean up the main content clone
-            ['script', 'style', 'link', 'img'].forEach(tag => {
-                mainClone.querySelectorAll(tag).forEach(el => el.remove());
-            });
-            simplifiedContainer.appendChild(mainClone);
+      case 'user_needed':
+        return { 
+          success: true, 
+          action: 'user_needed', 
+          message: command.flavor 
+        };
+        
+      case 'done':
+        return { 
+          success: true, 
+          action: 'done', 
+          message: command.flavor 
+        };
+    }
+    
+    return { success: false, error: 'Invalid command structure' };
+  } catch (e) {
+    console.error('Error executing AI command:', e);
+    return { success: false, error: e.message };
+  }
+}
+
+// Message handler for communication with popup/background
+browser.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+  console.log("JARVIS received message:", message);
+  
+  try {
+    switch (message.action) {
+      case 'getPageState':
+        try {
+          const pageState = await getPageState(message.userGoal);
+          return { success: true, pageState }; // This structure is crucial
+      } catch (error) {
+          return { success: false, error: error.message };
+      }
+        break;
+        
+      case 'executeAICommand':
+        const result = await executeAICommand(message.aiResponse);
+        sendResponse(result);
+        break;
+        
+      case 'takeAction':
+        // Direct action without AI (fallback)
+        if (message.command === 'click' && message.selector) {
+          const element = document.querySelector(message.selector);
+          if (element) {
+            element.click();
+            sendResponse({ success: true });
+          } else {
+            sendResponse({ success: false, error: 'Element not found' });
+          }
         }
+        break;
         
-        console.log("Optimized HTML size:", simplifiedContainer.outerHTML.length);
-        return Promise.resolve(simplifiedContainer.outerHTML);
-        
+      default:
+        sendResponse({ success: false, error: 'Unknown action' });
     }
-    else if (message.action === "apiResponse") {
-        console.log("AI response:", message.data);
-        // Process the response as needed
-    }
-    return Promise.resolve("Message received");
+  } catch (error) {
+    console.error("Error handling message:", error);
+    sendResponse({ success: false, error: error.message });
+  }
+  
+  return true; // Keep message channel open for async response
 });

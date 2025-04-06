@@ -25,22 +25,20 @@ class DSPrompter:
         if (not DS_api_key):
             raise ValueError("you have NO api key...")
 
-        self.client = OpenAI(api_key=DS_api_key, base_url="https://api.deepseek.com")
+        self.client = OpenAI(api_key=DS_api_key)
         self.system_prompt = get_system_prompt()
-        print(self.system_prompt)
-        pass
 
     def get_json_response_from_dict_instruction(self, dict_input):
         htmlCode = dict_input["htmlCode"]
         instruction = dict_input["instruction"]
 
         response = self.client.chat.completions.create(
-            model="deepseek-chat",
+            model="gpt-4o-mini",
+            store=True,
             messages=[
                 {"role": "system", "content": self.system_prompt},
                 {"role": "user", "content": "INSTRUCTION: " + instruction + "CODE: " + htmlCode},
             ],
-            stream=False,
             # force json response
             response_format={"type": "json_object"}
         )

@@ -16,7 +16,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let promptIndex = 0;
     let isTyping = true;
     let i = 0;
-
     const HEROKU_API = 'https://shrouded-waters-48660-941c6e92b405.herokuapp.com/ask';
     
     function typeWriter() {
@@ -44,6 +43,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     setTimeout(typeWriter, 300);
+    
+    const input = document.getElementById('prompt-input');
+    const button = document.getElementById('submit-btn');
 
     const showSubmitFeedback = () => {
         button.style.transform = 'scale(0.95)';
@@ -54,7 +56,124 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 200);
     };
 
-    const sendToBackend = async (html, instruction) => {
+    async function queryAI(pageState) {
+        try {
+            // Convert elements array to a string representation
+            const elementsStr = Array.isArray(pageState.elements) 
+                ? JSON.stringify(pageState.elements, null, 2)
+                : String(pageState.elements);
+            
+            const aiPrompt = `You are Jarvis. Analyze this page state and user goal:
+    Goal: ${pageState.userGoal}
+    Interactable Elements: ${elementsStr}
+    
+    Respond with JSON following the exact schema provided.`;
+            
+            console.log("AI Prompt:", aiPrompt);
+            
+            // Get response from backend
+            const aiResponse = await accessBackend(elementsStr, pageState.userGoal);
+            
+            // Ensure the response is properly stringified
+            if (typeof aiResponse === 'object') {
+                return JSON.stringify(aiResponse);
+            }
+            
+            // If it's already a string, try to parse it to validate
+            try {
+                JSON.parse(aiResponse);
+                return aiResponse;
+            } catch {
+                throw new Error("Invalid JSON response from API");
+            }
+            
+        } catch (error) {
+            console.error("Error in queryAI:", error);
+            // Return a safe fallback response
+            return JSON.stringify({
+                status: "continue",
+                command: "search",
+                args: {
+                    query: pageState.userGoal,
+                },
+                flavor: "Error processing AI response"
+            });
+        }
+    }
+
+    const handleSubmit = async () => {
+        const prompt = input.value.trim();
+        if (!prompt) return;
+    
+        showSubmitFeedback();
+        console.log("Processing prompt:", prompt);
+    
+        try {
+            const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+            for (let i = 0; i < 5; i++){
+                // Step 1: Get current page state from content script
+                const response = await browser.tabs.sendMessage(tab.id, {
+                    action: "getPageState",
+                    userGoal: prompt
+                });
+                
+                // Check if we got a valid response
+                if (!response || !response.success) {
+                    throw new Error("Failed to get page state from content script");
+                }
+                
+                console.log("Received page state:", response.pageState);
+        
+                // Step 2: Send to AI and get response
+            
+                const aiResponse = await queryAI({
+                    ...response.pageState,
+                    userGoal: prompt // Ensure userGoal is included
+                });
+
+        
+                
+                console.log("AI Response:", aiResponse);
+        
+                // Step 3: Execute the AI's command
+                const executionResult = await browser.tabs.sendMessage(tab.id, {
+                    action: "executeAICommand",
+                    aiResponse: aiResponse
+                });
+                
+                // Handle the execution result
+                if (!executionResult.success) {
+                    //throw new Error(executionResult.error || "Command execution failed");
+                    console.log("eror");
+                }
+        
+                console.log("Execution result:", executionResult);
+        
+                // Handle different statuses
+                if (executionResult.action === 'user_needed') {
+                    alert(`Jarvis needs your help: ${executionResult.message}`);
+                } else if (executionResult.action === 'done') {
+                    alert(`Success: ${executionResult.message}`);
+                }
+        
+                input.value = '';
+            
+            }
+            } catch (error) {
+                console.error("Error during automation:", error);
+                alert(`Jarvis encountered an error: ${error.message}`);
+                
+                // Fallback: Open a new tab with Google search
+                if (error.message.includes("No receiver") || error.message.includes("Could not establish connection")) {
+                    browser.tabs.create({
+                        url: `https://www.google.com/search?q=${encodeURIComponent(prompt)}`
+                    });
+                }
+        
+        }
+    };
+
+    const accessBackend = async (html, instruction) => {
         try {
             const response = await fetch(HEROKU_API, {
                 method: 'POST',
@@ -67,64 +186,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 })
             });
 
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             return await response.json();
         } catch (err) {
             console.error("API Fetch Error:", err);
             throw err;
-        }
-    };
-
-    const handleSubmit = async () => {
-        const prompt = input.value.trim();
-        if (prompt && !button.disabled) {
-            // Set loading state
-            button.disabled = true;
-            loadingIndicator.style.display = 'flex';
-            showSubmitFeedback();
-            
-            let timeoutSeconds = 0;
-            const timeoutInterval = setInterval(() => {
-                timeoutSeconds++;
-                loadingIndicator.querySelector('span').textContent = 
-                    `Processing your request... (${timeoutSeconds}s)`;
-            }, 1000);
-
-            try {
-                // Get current tab's HTML
-                const tabs = await browser.tabs.query({active: true, currentWindow: true});
-                const html = await browser.tabs.sendMessage(tabs[0].id, {
-                    action: "getPageHTML"
-                });
-
-                // Send to backend
-                const apiData = await sendToBackend(html, prompt);
-                
-                // Send response to content script
-                await browser.tabs.sendMessage(tabs[0].id, {
-                    action: "apiResponse",
-                    data: apiData
-                });
-
-                console.log("POPUP LOG:", {
-                    userInput: prompt,
-                    apiResponse: apiData
-                });
-
-            } catch (err) {
-                console.error("Submission Error:", err);
-                button.style.backgroundColor = '#ff4444';
-                setTimeout(() => {
-                    button.style.backgroundColor = '#4285f4';
-                }, 1000);
-            } finally { //other thing that MATTERS
-                // Reset UI
-                clearInterval(timeoutInterval);
-                button.disabled = false;
-                loadingIndicator.style.display = 'none';
-                loadingIndicator.querySelector('span').textContent = 'Processing your request...';
-                input.value = '';
-            }
         }
     };
 
@@ -138,7 +203,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 button.style.boxShadow = 'none';
             }, 300);
             handleSubmit();
+            button.classList.add('keyboard-submit');
+            setTimeout(() => button.classList.remove('keyboard-submit'), 300);
         }
     });
+
+    // Focus input when popup opens
+    input.focus();
 });
 
