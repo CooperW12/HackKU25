@@ -10,6 +10,14 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
     let promptIndex = 0;
     let isTyping = true;
+    const prompts = [
+        "Jarvis, cancel my Amazon subscription.",
+        "Jarvis, show me the Nasdaq.",
+        "Jarvis, show me air fryer deals.",
+        "Jarvis, take me to LeBron highlights!"
+    ];
+    let promptIndex = 0;
+    let isTyping = true;
     let i = 0;
     
      //Heroku API endpoint
@@ -154,4 +162,5 @@ document.addEventListener('DOMContentLoaded', () => {
             handleSubmit();
         }
     });
+});
 });
