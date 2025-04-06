@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+import json
 from DSPrompter import DSPrompter
 
 app = Flask(__name__)
@@ -34,18 +35,13 @@ def test():
 
     return jsonify(json_response)
 
-
-@app.route('/send', methods=['GET', 'POST'])
-def route():
-    if request.method == 'GET':
-        # Handle GET request
-        query_param = request.args.get('param_name')
-        return f"Received GET request with parameter: {query_param}"
-    elif request.method == 'POST':
-        # Handle POST request
-        data = request.get_json()
-        return f"Received POST request with data: {data}"
-
+@app.route("/ask/<json_string>")
+def weather(json_string):
+    json_obj = json.loads(json_string)
+    json_response = dsp.get_json_response_from_dict_instruction(json_obj)
+    print(f"custom json response: {json_response}")
+    print(json_response)
+    return jsonify(json_response)
 
 if __name__ == '__main__':
     app.run(debug=True)
