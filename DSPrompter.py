@@ -21,7 +21,11 @@ class DSPrompter:
 
     def __init__(self):
         # initialize deepseek client and system prompt text
-        self.client = OpenAI(api_key=os.environ['API_KEY'], base_url="https://api.deepseek.com")
+        DS_api_key = os.environ.get("API_KEY")
+        if (not DS_api_key):
+            raise ValueError("you have NO api key...")
+
+        self.client = OpenAI(api_key=DS_api_key, base_url="https://api.deepseek.com")
         self.system_prompt = read_file_skip_errors("system_prompt.txt")
         pass
 
